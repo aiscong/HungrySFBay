@@ -7,6 +7,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from urllib.parse import urlparse
+from post import Page
+import locale
 
 
 class Util:
@@ -15,6 +17,7 @@ class Util:
     def __init__(self):
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument("--disable-infobars")
+        chrome_options.add_experimental_option("mobileEmulation", {"deviceName": "iPhone X"})
         self.driver = webdriver.Chrome(executable_path='./chromedriver', chrome_options=chrome_options)
 
     def log_in(self, username, password):
@@ -32,9 +35,9 @@ class Util:
                 EC.presence_of_element_located((By.XPATH, "//button[@type='submit']")))
             log_in_button.click()
 
-            not_now_popup = WebDriverWait(self.driver, self.delay).until(
-                EC.presence_of_element_located((By.XPATH, "//button[contains(text(),'Not Now')]")))
-            not_now_popup.click()
+            cancel_popup = WebDriverWait(self.driver, self.delay).until(
+                EC.presence_of_element_located((By.XPATH, "//button[contains(text(),'Cancel')]")))
+            cancel_popup.click()
         except TimeoutException:
             print("Loading took too much time!")
 
@@ -73,6 +76,11 @@ class Util:
         #
         # print(len(thumbnail_list))
 
+    def build_post_from_post_url(self, post_url):
+        self.driver.get(post_url)
+        print(self.driver.find_element_by_xpath("//h2[@class='BrX75']/a").get_attribute("href")) # author page
+        print(self.driver.find_element_by_xpath("//div[@class='Nm9Fw']/a/span").text) #likes
+
     def build_page_from_page_url(self, page_url):
         self.driver.get(page_url)
 
@@ -83,23 +91,50 @@ class Util:
             following_element = WebDriverWait(self.driver, self.delay).until(
                 EC.presence_of_element_located(
                     (By.XPATH, "//a[@href='{}following/']/span".format(urlparse(page_url).path))))
-            num_post_elment = WebDriverWait(self.driver, self.delay).until(
+            num_post_element = WebDriverWait(self.driver, self.delay).until(
                 EC.presence_of_element_located((By.XPATH,
-                                                "//a[@href='{}followers/']/span/ancestor::ul/li[1]/span/span".format(
+                                                "//a[@href='{}followers/']/ancestor::ul/li[1]/span/span".format(
                                                     urlparse(page_url).path))))
-            nick_name_element = WebDriverWait(self.driver, self.delay).until(
-                EC.presence_of_element_located((By.XPATH, "//h1[@class='rhpdm']")))
+            user_name_element = WebDriverWait(self.driver, self.delay).until(
+                EC.presence_of_element_located((By.XPATH, "//div[@class='nZSzR']/h1")))
+
+            page = Page(url=page_url, num_followers=Util.parse_num_string(follower_element.get_attribute("title")),
+                        num_following=Util.parse_num_string(following_element.text),
+                        num_posts=Util.parse_num_string(num_post_element.text), user_name=user_name_element.text)
 
             try:
-                bio_link = self.driver.find_element_by_xpath("//h1[@class='rhpdm']/parent::div/a")
-                # print("https://{}".format(bio_link.text))
+                name_element = WebDriverWait(self.driver, self.delay).until(
+                    EC.presence_of_element_located((By.XPATH, "//h1[@class='rhpdm']")))
+                page.name = name_element.text
             except NoSuchElementException:
                 pass
-
-            print(self.driver.find_element_by_xpath("//h1[@class='rhpdm']/parent::div/span").text)
-
+            try:
+                bio_element = self.driver.find_element_by_xpath("//div[@class='-vDIg']/span")
+                page.bio = bio_element.text
+            except NoSuchElementException:
+                pass
+            try:
+                bio_link_element = self.driver.find_element_by_xpath("//div[@class='-vDIg']/a")
+                page.bio_link = bio_link_element.text
+            except NoSuchElementException:
+                pass
+            print(page.url)
+            print(page.name)
+            print(page.num_followers)
+            print(page.num_following)
+            print(page.num_posts)
+            print(page.user_name)
+            print(page.bio)
+            print(page.bio_link)
+            return page
         except TimeoutException:
             print("Loading took too much time!")
-        # self.driver.find_element_by_xpath(
-        #     "//a[@href='{}followers/']/span".format(urlparse(page_url).path)).get_attribute("title")
-        return
+
+    @staticmethod
+    def parse_num_string(num_string):
+        try:
+            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+            num = locale.atoi(num_string)
+            return num
+        except ValueError:
+            print("Parsing {} error!".format(num_string))
