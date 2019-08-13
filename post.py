@@ -11,7 +11,8 @@ class Page:
 
 
 class Post:
-    def __init__(self, url, author_page, tag_page, photo_url, caption, num_likes, num_comments, explore_location, timestamp):
+    def __init__(self, url, author_page, tag_page, photo_url, caption, num_likes, num_comments, explore_location,
+                 timestamp):
         self.photo_url = photo_url
         self.caption = caption
         self.num_likes = num_likes

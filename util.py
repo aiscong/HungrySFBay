@@ -17,6 +17,10 @@ class Util:
     def __init__(self):
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument("--disable-infobars")
+        chrome_options.add_experimental_option('prefs', {
+            'credentials_enable_autosignin': False,
+            'credentials_enable_service': False,
+        })
         chrome_options.add_experimental_option("mobileEmulation", {"deviceName": "iPhone X"})
         self.driver = webdriver.Chrome(executable_path='./chromedriver', chrome_options=chrome_options)
 
@@ -78,8 +82,8 @@ class Util:
 
     def build_post_from_post_url(self, post_url):
         self.driver.get(post_url)
-        print(self.driver.find_element_by_xpath("//h2[@class='BrX75']/a").get_attribute("href")) # author page
-        print(self.driver.find_element_by_xpath("//div[@class='Nm9Fw']/a/span").text) #likes
+        print(self.driver.find_element_by_xpath("//h2[@class='BrX75']/a").get_attribute("href"))  # author page
+        print(self.driver.find_element_by_xpath("//div[@class='Nm9Fw']/a/span").text)  # likes
 
     def build_page_from_page_url(self, page_url):
         self.driver.get(page_url)
