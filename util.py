@@ -1,6 +1,8 @@
-from selenium import webdriver
+import locale
 import time
 import requests
+import datetime
+from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
@@ -8,7 +10,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from urllib.parse import urlparse
 from post import Page
-import locale
+from post import Post
+from post import Caption
 
 
 class Util:
@@ -48,14 +51,6 @@ class Util:
     def search_by_tag(self, tag):
         self.driver.get("https://www.instagram.com/explore/tags/" + tag)
 
-    def get_tagged_page_urls_from_post_url(self, post_url):
-        self.driver.get(post_url)
-        page_url_set = set()
-        for tagged_page in self.driver.find_elements_by_xpath("//a[@class='JYWcJ']"):
-            page_url_set.add(tagged_page.get_attribute("href"))
-        print(page_url_set)
-        return page_url_set
-
     def get_post_urls_by_tag(self, tag):
         post_url_set = set()
         self.search_by_tag(tag)
@@ -80,14 +75,84 @@ class Util:
         #
         # print(len(thumbnail_list))
 
-    def build_post_from_post_url(self, post_url):
+    def get_tagged_user_id_from_post_url(self):
+        tagged_user_id_set = set()
+        for tag in self.driver.find_elements_by_xpath("//a[@class='JYWcJ']"):
+            tagged_user_id_set.add(urlparse(tag.get_attribute("href")).path[1:-1])
+        return list(tagged_user_id_set)
+
+    def get_at_user_id_from_post_url(self):
+        at_user_id_set = set()
+        for at_user_id_element in self.driver.find_elements_by_xpath(
+                "//h2[@class='_6lAjh']/parent::div/span/a[contains(text(),'@')]"):
+            at_user_id_set.add(at_user_id_element.text[1:])
+        return list(at_user_id_set)
+
+    def get_hashtag_from_post_url(self):
+        hashtag_set = set()
+        for hashtag in self.driver.find_elements_by_xpath(
+                "//h2[@class='_6lAjh']/parent::div/span/a[contains(text(),'#')]"):
+            hashtag_set.add(hashtag.text[1:])
+        return list(hashtag_set)
+
+    def build_post_from_url(self, post_url):
         self.driver.get(post_url)
-        print(self.driver.find_element_by_xpath("//h2[@class='BrX75']/a").get_attribute("href"))  # author page
-        print(self.driver.find_element_by_xpath("//div[@class='Nm9Fw']/a/span").text)  # likes
+        try:
+            author_username = WebDriverWait(self.driver, self.delay).until(
+                EC.presence_of_element_located((By.XPATH, "//h2[@class='BrX75']/a"))).text
+            author_page = WebDriverWait(self.driver, self.delay).until(
+                EC.presence_of_element_located((By.XPATH, "//h2[@class='BrX75']/a"))).get_attribute("href")
+            num_likes = WebDriverWait(self.driver, self.delay).until(
+                EC.presence_of_element_located((By.XPATH, "//div[@class='Nm9Fw']/a/span"))).text
+            num_comments = WebDriverWait(self.driver, self.delay).until(
+                EC.presence_of_element_located((By.XPATH, "//li[@class='lnrre']/button/span"))).text
+            timestamp = WebDriverWait(self.driver, self.delay).until(
+                EC.presence_of_element_located((By.XPATH, "//a[@class='c-Yi7']/time"))).get_attribute("datetime")
+            timestamp = datetime.datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
+            post = Post(author_username=author_username, author_page=author_page, num_likes=num_likes,
+                        num_comments=num_comments, timestamp=timestamp)
+            try:
+                caption_text = self.driver.find_element_by_xpath("//h2[@class='_6lAjh']/parent::div/span").text
+                post.caption = Caption(text=caption_text)
+            except NoSuchElementException:
+                pass
 
-    def build_page_from_page_url(self, page_url):
+            try:
+                post.caption.at_user_id = self.get_at_user_id_from_post_url()
+            except NoSuchElementException:
+                pass
+
+            try:
+                post.caption.hashtag = self.get_hashtag_from_post_url()
+            except NoSuchElementException:
+                pass
+
+            try:
+                post.tagged_user_id = self.get_tagged_user_id_from_post_url()
+            except NoSuchElementException:
+                pass
+
+            try:
+                explore_location = WebDriverWait(self.driver, self.delay).until(
+                    EC.presence_of_element_located((By.XPATH, "//a[@class='O4GlU']"))).text
+                post.explore_location = explore_location
+            except NoSuchElementException:
+                pass
+            print(post.author_username)
+            print(post.author_page)
+            print(post.num_likes)
+            print(post.num_comments)
+            print(post.timestamp)
+            print(post.caption)
+            print(post.caption.at_user_id)
+            print(post.caption.hashtag)
+            print(post.tagged_user_id)
+            print(post.explore_location)
+        except TimeoutException:
+            print("Loading took too much time!")
+
+    def build_page_from_url(self, page_url):
         self.driver.get(page_url)
-
         try:
             follower_element = WebDriverWait(self.driver, self.delay).until(
                 EC.presence_of_element_located(
