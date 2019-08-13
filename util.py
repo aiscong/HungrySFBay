@@ -61,19 +61,13 @@ class Util:
                 post_url_set.add(thumbnail.get_attribute("href"))
         except TimeoutException:
             print("Loading took too much time!")
-
         print(post_url_set, sep="\n")
         return post_url_set
-        # thumbnail_href = thumbnail_list[0].get_attribute("href")
-        # self.driver.get(thumbnail_href)
-        # time.sleep(1)
-        # photo_url = self.driver.find_element_by_xpath("//img[@class='FFVAD']").get_attribute("src")
-        # self.driver.get(photo_url)
-        # requests.get(photo_url).content
-        # with open('image_name.jpg', 'wb') as handler:
-        #     handler.write(img_data)
-        #
-        # print(len(thumbnail_list))
+
+    def save_photo(self, photo_url):
+        img_data = requests.get(photo_url).content
+        with open("img.jpg", 'wb') as handler:
+            handler.write(img_data)
 
     def get_tagged_user_id_from_post_url(self):
         tagged_user_id_set = set()
@@ -97,6 +91,14 @@ class Util:
 
     def build_post_from_url(self, post_url):
         self.driver.get(post_url)
+        is_video = self.driver.find_elements_by_xpath("//div[@class='oJub8']")
+        num_photos = self.driver.find_elements_by_xpath("//div[@class='KL4Bh']")
+        if len(is_video) > 0:
+            print('This post contains video')
+            return
+        if len(num_photos) > 1:
+            print('This post contain multiple photos')
+            return
         try:
             author_username = WebDriverWait(self.driver, self.delay).until(
                 EC.presence_of_element_located((By.XPATH, "//h2[@class='BrX75']/a"))).text
@@ -109,45 +111,34 @@ class Util:
             timestamp = WebDriverWait(self.driver, self.delay).until(
                 EC.presence_of_element_located((By.XPATH, "//a[@class='c-Yi7']/time"))).get_attribute("datetime")
             timestamp = datetime.datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
+            photo_url = WebDriverWait(self.driver, self.delay).until(
+                EC.presence_of_element_located((By.XPATH, "//img[@class='FFVAD']"))).get_attribute("src")
             post = Post(author_username=author_username, author_page=author_page, num_likes=num_likes,
-                        num_comments=num_comments, timestamp=timestamp)
+                        num_comments=num_comments, timestamp=timestamp, photo_url=photo_url)
             try:
                 caption_text = self.driver.find_element_by_xpath("//h2[@class='_6lAjh']/parent::div/span").text
                 post.caption = Caption(text=caption_text)
             except NoSuchElementException:
                 pass
-
             try:
-                post.caption.at_user_id = self.get_at_user_id_from_post_url()
+                post.caption.at_username = self.get_at_user_id_from_post_url()
             except NoSuchElementException:
                 pass
-
             try:
                 post.caption.hashtag = self.get_hashtag_from_post_url()
             except NoSuchElementException:
                 pass
-
             try:
-                post.tagged_user_id = self.get_tagged_user_id_from_post_url()
+                post.tagged_username = self.get_tagged_user_id_from_post_url()
             except NoSuchElementException:
                 pass
-
             try:
                 explore_location = WebDriverWait(self.driver, self.delay).until(
                     EC.presence_of_element_located((By.XPATH, "//a[@class='O4GlU']"))).text
                 post.explore_location = explore_location
             except NoSuchElementException:
                 pass
-            print(post.author_username)
-            print(post.author_page)
-            print(post.num_likes)
-            print(post.num_comments)
-            print(post.timestamp)
-            print(post.caption)
-            print(post.caption.at_user_id)
-            print(post.caption.hashtag)
-            print(post.tagged_user_id)
-            print(post.explore_location)
+            print(post)
         except TimeoutException:
             print("Loading took too much time!")
 
@@ -164,13 +155,11 @@ class Util:
                 EC.presence_of_element_located((By.XPATH,
                                                 "//a[@href='{}followers/']/ancestor::ul/li[1]/span/span".format(
                                                     urlparse(page_url).path))))
-            user_name_element = WebDriverWait(self.driver, self.delay).until(
+            username_element = WebDriverWait(self.driver, self.delay).until(
                 EC.presence_of_element_located((By.XPATH, "//div[@class='nZSzR']/h1")))
-
             page = Page(url=page_url, num_followers=Util.parse_num_string(follower_element.get_attribute("title")),
                         num_following=Util.parse_num_string(following_element.text),
-                        num_posts=Util.parse_num_string(num_post_element.text), user_name=user_name_element.text)
-
+                        num_posts=Util.parse_num_string(num_post_element.text), username=username_element.text)
             try:
                 name_element = WebDriverWait(self.driver, self.delay).until(
                     EC.presence_of_element_located((By.XPATH, "//h1[@class='rhpdm']")))
@@ -187,15 +176,7 @@ class Util:
                 page.bio_link = bio_link_element.text
             except NoSuchElementException:
                 pass
-            print(page.url)
-            print(page.name)
-            print(page.num_followers)
-            print(page.num_following)
-            print(page.num_posts)
-            print(page.user_name)
-            print(page.bio)
-            print(page.bio_link)
-            return page
+            print(page)
         except TimeoutException:
             print("Loading took too much time!")
 
