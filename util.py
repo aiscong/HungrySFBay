@@ -1,7 +1,7 @@
 import locale
-import time
 import requests
 import datetime
+import pandas as pd
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoSuchElementException
@@ -9,13 +9,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from urllib.parse import urlparse
-from post import Page
-from post import Post
-from post import Caption
+from post import *
 
 
 class Util:
-    delay = 10  # seconds
+    delay = 5  # seconds
 
     def __init__(self):
         chrome_options = webdriver.ChromeOptions()
@@ -53,21 +51,52 @@ class Util:
 
     def get_post_urls_by_tag(self, tag):
         post_url_set = set()
+        # post_url_set = []
         self.search_by_tag(tag)
         try:
             thumbnail_list = WebDriverWait(self.driver, self.delay).until(
                 EC.presence_of_all_elements_located((By.XPATH, "//div[@class='eLAPa']/parent::a")))
             for thumbnail in thumbnail_list:
                 post_url_set.add(thumbnail.get_attribute("href"))
+                # post_url_set.append(thumbnail.get_attribute("href"))
         except TimeoutException:
             print("Loading took too much time!")
         print(post_url_set, sep="\n")
         return post_url_set
 
-    def save_photo(self, photo_url):
-        img_data = requests.get(photo_url).content
-        with open("img.jpg", 'wb') as handler:
-            handler.write(img_data)
+    def get_total_post_cnt_by_tag(self, tag):
+        self.search_by_tag(tag)
+        try:
+            post_cnt_string = WebDriverWait(self.driver, self.delay).until(
+                EC.presence_of_element_located((By.XPATH, "//button[@type='button']/parent::div"))).text.split(' ')[0]
+            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+            post_cnt = locale.atoi(post_cnt_string)
+        except TimeoutException:
+            print("Loading took too much time!")
+        tag = Tag(tag=tag, post_cnt=post_cnt)
+        return tag
+
+    def save_tag_post_cnt_info(self, tag_list_input, tag_info_output, refresh_date):
+        tag_list = pd.read_csv(tag_list_input, sep='\t', header=None, names=['tags'])
+        tag_list = tag_list.drop_duplicates().sort_values(by='tags')
+        tag_list.to_csv(tag_list_input, index=False, header=False)
+        tag_post_cnt_output = []
+        for tag in tag_list.tags:
+            tag_post_cnt_output.append(self.get_total_post_cnt_by_tag(tag))
+        tag_df = pd.DataFrame(([t.__dict__ for t in tag_post_cnt_output]))
+        tag_df['refresh_date'] = refresh_date
+
+        def tag_size(x):
+            if x > 500000:
+                return 'Large'
+            elif x > 100000:
+                return 'Medium'
+            else:
+                return 'Small'
+
+        tag_df['size'] = tag_df.post_cnt.apply(lambda x: tag_size(x))
+        tag_df = tag_df[['tag', 'post_cnt', 'size', 'refresh_date']]
+        tag_df.to_csv(tag_info_output, index=False)
 
     def get_tagged_user_id_from_post_url(self):
         tagged_user_id_set = set()
@@ -91,30 +120,38 @@ class Util:
 
     def build_post_from_url(self, post_url):
         self.driver.get(post_url)
-        is_video = self.driver.find_elements_by_xpath("//div[@class='oJub8']")
+        # is_video1 = self.driver.find_elements_by_xpath("//div[@class='oJub8']")
+        # is_video2 = self.driver.find_elements_by_xpath("//video[@class='tWeCl']")
         num_photos = self.driver.find_elements_by_xpath("//div[@class='KL4Bh']")
-        if len(is_video) > 0:
-            print('This post contains video')
-            return
-        if len(num_photos) > 1:
-            print('This post contain multiple photos')
+        if len(num_photos) > 1 or len(num_photos) == 0:
+            print('This post contain multiple photos or videos')
             return
         try:
             author_username = WebDriverWait(self.driver, self.delay).until(
                 EC.presence_of_element_located((By.XPATH, "//h2[@class='BrX75']/a"))).text
             author_page = WebDriverWait(self.driver, self.delay).until(
                 EC.presence_of_element_located((By.XPATH, "//h2[@class='BrX75']/a"))).get_attribute("href")
-            num_likes = WebDriverWait(self.driver, self.delay).until(
-                EC.presence_of_element_located((By.XPATH, "//div[@class='Nm9Fw']/a/span"))).text
-            num_comments = WebDriverWait(self.driver, self.delay).until(
-                EC.presence_of_element_located((By.XPATH, "//li[@class='lnrre']/button/span"))).text
             timestamp = WebDriverWait(self.driver, self.delay).until(
                 EC.presence_of_element_located((By.XPATH, "//a[@class='c-Yi7']/time"))).get_attribute("datetime")
             timestamp = datetime.datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
             photo_url = WebDriverWait(self.driver, self.delay).until(
                 EC.presence_of_element_located((By.XPATH, "//img[@class='FFVAD']"))).get_attribute("src")
-            post = Post(author_username=author_username, author_page=author_page, num_likes=num_likes,
-                        num_comments=num_comments, timestamp=timestamp, photo_url=photo_url)
+            post = Post(author_username=author_username, author_page=author_page,
+                        timestamp=timestamp, photo_url=photo_url)
+            try:
+                num_likes = WebDriverWait(self.driver, self.delay).until(
+                    EC.presence_of_element_located((By.XPATH, "//div[@class='Nm9Fw']/a/span"))).text
+                post.num_likes = num_likes
+            except TimeoutException:
+                print('No likes expt')
+                pass
+            try:
+                num_comments = WebDriverWait(self.driver, self.delay).until(
+                    EC.presence_of_element_located((By.XPATH, "//li[@class='lnrre']/button/span"))).text
+                post.num_comments = num_comments
+            except TimeoutException:
+                print('No comments expt')
+                pass
             try:
                 caption_text = self.driver.find_element_by_xpath("//h2[@class='_6lAjh']/parent::div/span").text
                 post.caption = Caption(text=caption_text)
@@ -133,17 +170,31 @@ class Util:
             except NoSuchElementException:
                 pass
             try:
-                explore_location = WebDriverWait(self.driver, self.delay).until(
+                explore_location_name = WebDriverWait(self.driver, self.delay).until(
                     EC.presence_of_element_located((By.XPATH, "//a[@class='O4GlU']"))).text
-                post.explore_location = explore_location
-            except NoSuchElementException:
+                explore_location_url = WebDriverWait(self.driver, self.delay).until(
+                    EC.presence_of_element_located((By.XPATH, "//a[@class='O4GlU']"))).get_attribute("href")
+                post.explore_location.name = explore_location_name
+                post.explore_location.url = explore_location_url
+            except TimeoutException:
+                print('No explore_location expt')
                 pass
             print(post)
+            return post
         except TimeoutException:
             print("Loading took too much time!")
 
+    def save_photo(self, photo_url, path):
+        img_data = requests.get(photo_url).content
+        with open(path, 'wb') as handler:
+            handler.write(img_data)
+
     def build_page_from_url(self, page_url):
         self.driver.get(page_url)
+        is_private = self.driver.find_elements_by_xpath("//h2[@class='rkEop']")
+        if len(is_private) > 0:
+            print('This account is private')
+            return
         try:
             follower_element = WebDriverWait(self.driver, self.delay).until(
                 EC.presence_of_element_located(
@@ -177,6 +228,7 @@ class Util:
             except NoSuchElementException:
                 pass
             print(page)
+            return page
         except TimeoutException:
             print("Loading took too much time!")
 
