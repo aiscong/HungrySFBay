@@ -1,5 +1,7 @@
 import util
+import os
 import pandas as pd
+from datetime import date
 
 
 class Instagram:
@@ -25,34 +27,59 @@ if __name__ == '__main__':
 
     sffood_tag_list_path = 'files/sffood_tag_list.txt'
     sffood_tag_info_path = 'files/sffood_tag_info.csv'
-    tag_refresh_date = '20190815'
-    # ins.util.save_tag_post_cnt_info(sffood_tag_list_path, sffood_tag_info_path, tag_refresh_date)
-
     username_info_path = 'files/username_info.csv'
     post_info_path = 'files/post_info.csv'
     photo_folder = 'photos/'
-    username_set = set()
-    username_info = []
-    post_info = []
-    post_url_set = ins.util.get_post_urls_by_tag("sffood")
 
-    for post_url in post_url_set:
-        print(post_url)
-        post = ins.util.build_post_from_url(post_url)
-        if post is not None:
-            post_info.append(post)
-            username_set.add(post.author_username)
-            username_set.union(set(post.tagged_username))
-    if len(post_info) > 0:
-        post_info = pd.DataFrame.from_records([p.to_dict() for p in post_info])
-        post_info.to_csv(post_info_path, index=False)
+    # refresh tag size info
+    # tag_refresh_date = date.today().strftime("%m/%d/%Y")
+    # ins.util.save_tag_post_cnt_info(sffood_tag_list_path, sffood_tag_info_path, tag_refresh_date)
 
-    for username in username_set:
-        print(username)
-        username_url = 'https://www.instagram.com/' + username + '/'
-        page = ins.util.build_page_from_url(username_url)
-        if page is not None:
-            username_info.append(page)
-    if len(username_info) > 0:
-        username_info = pd.DataFrame(([u.__dict__ for u in username_info]))
-        username_info.to_csv(username_info_path, index=False)
+    sffood_tag_list = pd.read_csv(sffood_tag_list_path, sep='\t', header=None, names=['tags'])
+
+    if os.path.exists(username_info_path):
+        username_info = pd.read_csv(username_info_path)
+        existing_user = set(username_info.username)
+    else:
+        existing_user = set()
+
+    if os.path.exists(post_info_path):
+        post_info = pd.read_csv(post_info_path)
+        existing_post = set(post_info.photo_url)
+    else:
+        existing_post = set()
+
+    new_username_set = set()
+    new_username_info = []
+    new_post_info = []
+
+    for sffood_tag in sffood_tag_list.tags:
+        post_url_list = ins.util.get_post_urls_by_tag(sffood_tag)[:9]
+
+        for post_url in post_url_list:
+            post = ins.util.build_post_from_url(post_url, 1)
+            if post is not None:
+                if post.photo_url not in existing_post:
+                    new_post_info.append(post)
+                    new_username_set.add(post.author_username)
+                    new_username_set.union(set(post.tagged_username))
+        if len(new_post_info) > 0:
+            new_post_info = pd.DataFrame.from_records([p.to_dict() for p in new_post_info])
+            new_post_info['source_tag'] = sffood_tag
+            if not os.path.exists(post_info_path):
+                new_post_info.to_csv(post_info_path, index=False)
+            else:
+                new_post_info.to_csv(post_info_path, mode='a', header=False, index=False)
+
+        for username in new_username_set:
+            username_url = 'https://www.instagram.com/' + username + '/'
+            page = ins.util.build_page_from_url(username_url)
+            if page is not None:
+                if page.username not in existing_user:
+                    new_username_info.append(page)
+        if len(new_username_info) > 0:
+            new_username_info = pd.DataFrame(([u.__dict__ for u in new_username_info]))
+            if not os.path.exists(username_info_path):
+                new_username_info.to_csv(username_info_path, index=False)
+            else:
+                new_username_info.to_csv(username_info_path, mode='a', header=False, index=False)
