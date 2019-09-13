@@ -11,7 +11,7 @@ class Caption:
 
 
 class ExploreLocation:
-    def __int__(self, url="", name=""):
+    def __init__(self, url="", name=""):
         self.url = url
         self.name = name
 

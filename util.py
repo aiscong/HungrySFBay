@@ -198,8 +198,8 @@ class Util:
                     EC.presence_of_element_located((By.XPATH, "//a[@class='O4GlU']"))).text
                 explore_location_url = WebDriverWait(self.driver, self.delay).until(
                     EC.presence_of_element_located((By.XPATH, "//a[@class='O4GlU']"))).get_attribute("href")
-                post.explore_location.name = explore_location_name
-                post.explore_location.url = explore_location_url
+                explore_location = ExploreLocation(url=explore_location_url, name=explore_location_name)
+                post.explore_location = explore_location
             except TimeoutException:
                 print('No explore_location expt')
                 pass

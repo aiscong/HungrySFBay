@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-csv/1.0.5/jquery.csv.js"></script>
+
+<script>
+
+
+$(document).ready(function(){
+  $.ajax({
+    type: "GET",
+    url: "file://./files/post_info.csv",
+    dataType: "text",
+    success: function(data) {
+        console.log("loading success");
+        processData(data);
+    }
+  });
+  function processData(input) {
+    console.log(input);
+    $.csv.toArrays(input);
+  }
+  $("button").click(function() {
+  });
+});
+</script>
+</head>
+<body>
+<input id="csv" type="file">
+
+<h2>This is a heading</h2>
+
+<p>This is a paragraph.</p>
+<p>This is another paragraph.</p>
+
+<button>Click me</button>
+
+</body>
+</html>

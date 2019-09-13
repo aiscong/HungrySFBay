@@ -23,6 +23,7 @@ class Instagram:
 
 if __name__ == '__main__':
     auth = open('safe', 'r').readline().split(':')
+    print("=====start new session========")
     ins = Instagram(auth[0], auth[1])
 
     sffood_tag_list_path = 'files/sffood_tag_list.txt'
@@ -57,9 +58,12 @@ if __name__ == '__main__':
         post_url_list = ins.util.get_post_urls_by_tag(sffood_tag)[:9]
 
         for post_url in post_url_list:
+            print("=====processing {}".format(post_url))
             post = ins.util.build_post_from_url(post_url, 1)
             if post is not None:
                 if post.photo_url not in existing_post:
+                    print("===to be added post===")
+                    print(post)
                     new_post_info.append(post)
                     new_username_set.add(post.author_username)
                     new_username_set.union(set(post.tagged_username))
