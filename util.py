@@ -18,7 +18,7 @@ class Util:
 
     def __init__(self):
         chrome_options = webdriver.ChromeOptions()
-        # chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--headless")
         chrome_options.add_argument("--disable-infobars")
         chrome_options.add_experimental_option('prefs', {
             'credentials_enable_autosignin': False,
@@ -160,7 +160,7 @@ class Util:
 
                 return self.build_post_from_url(post_url, retry_time + 1)
 
-            post = Post(author_username=author_username, author_page=author_page,
+            post = Post(post_url=post_url, author_username=author_username, author_page=author_page,
                         timestamp=timestamp, photo_url=photo_url.get_attribute("src"))
             try:
                 num_likes = WebDriverWait(self.driver, self.delay).until(

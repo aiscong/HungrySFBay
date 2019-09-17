@@ -58,9 +58,10 @@ class Page:
 
 
 class Post:
-    def __init__(self, author_username, author_page, timestamp, photo_url,
+    def __init__(self, post_url, author_username, author_page, timestamp, photo_url,
                  num_likes=0, num_comments=0,
                  caption=Caption(), tagged_username=[], explore_location=ExploreLocation()):
+        self.post_url = post_url
         self.author_username = author_username
         self.author_page = author_page
         self.timestamp = timestamp
@@ -91,6 +92,7 @@ class Post:
 
     def to_dict(self):
         return {
+            'post_url': self.post_url,
             'author_username': self.author_username,
             'author_page': self.author_page,
             'timestamp': self.timestamp,
