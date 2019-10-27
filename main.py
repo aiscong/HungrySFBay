@@ -1,5 +1,7 @@
 import util
 import os
+import time
+import random
 import pandas as pd
 from datetime import date
 
@@ -22,6 +24,9 @@ class Instagram:
 
 
 if __name__ == '__main__':
+    wait = random.randint(1, 120)
+    time.sleep(wait)
+
     auth = open('safe', 'r').readline().split(':')
     ins = Instagram(auth[0], auth[1])
 
@@ -49,8 +54,8 @@ if __name__ == '__main__':
     else:
         existing_post = set()
 
-    # scrap post and user info
-    for sffood_tag in sffood_tag_list.tags[1:2]:
+    for sffood_tag in sffood_tag_list.tags:
+        print("======== {} ========".format(sffood_tag))
         post_url_list = ins.util.get_post_urls_by_tag(sffood_tag)[:9]
         new_post_info = []
         new_username_set = set()
@@ -72,8 +77,6 @@ if __name__ == '__main__':
             else:
                 post_df.to_csv(post_info_path, mode='a', header=False, index=False)
 
-        print('~~~~~~~~~ username ~~~~~~~~~~~~')
-        print(len(new_username_set))
         for username in new_username_set:
             username_url = 'https://www.instagram.com/' + username + '/'
             page = ins.util.build_page_from_url(username_url)

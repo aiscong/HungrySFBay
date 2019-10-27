@@ -203,7 +203,7 @@ class Util:
             except TimeoutException:
                 print('No explore_location expt')
                 pass
-            print(post)
+            # print(post)
             return post
         except TimeoutException:
             print("Loading took too much time!")
@@ -214,6 +214,7 @@ class Util:
             handler.write(img_data)
 
     def build_page_from_url(self, page_url):
+        print("visiting {}".format(page_url))
         self.driver.get(page_url)
         is_private = self.driver.find_elements_by_xpath("//h2[@class='rkEop']")
         if len(is_private) > 0:
@@ -251,7 +252,7 @@ class Util:
                 page.bio_link = bio_link_element.text
             except NoSuchElementException:
                 pass
-            print(page)
+            # print(page)
             return page
         except TimeoutException:
             print("Loading took too much time!")
